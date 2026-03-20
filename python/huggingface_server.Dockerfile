@@ -52,9 +52,9 @@ WORKDIR ${WORKSPACE_DIR}
 FROM base AS build
 
 ARG WORKSPACE_DIR
-ARG VLLM_VERSION=0.11.2
+ARG VLLM_VERSION=0.14.1
 ARG LMCACHE_VERSION=0.3.0
-ARG FLASHINFER_VERSION=0.5.2
+ARG FLASHINFER_VERSION=0.5.3
 
 WORKDIR ${WORKSPACE_DIR}
 
@@ -100,6 +100,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install flashinfer-jit-cache==${FLASHINFER_VERSION} \
         --extra-index-url https://flashinfer.ai/whl/cu$(echo ${CUDA_VERSION} | cut -d. -f1,2 | tr -d '.') && \
     flashinfer show-config
+
+# TODO fix "ModuleNotFoundError: Could not import module 'PreTrainedModel'"
+# pip install vllm downgrades torch to 2.7.0, so we reinstall the required version.
+# Ensure torch 2.9.1 is installed
+RUN --mount=type=cache,target=/root/.cache/pip pip install --upgrade torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1
 
 # Generate third-party licenses
 COPY pyproject.toml pyproject.toml

@@ -1,0 +1,83 @@
+{
+	"name": "HuggingFace Server Dev Container",
+	"dockerFile": "Dockerfile",
+	"context": "..",
+	
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter",
+				"ms-python.mypy-type-checker",
+				"charliermarsh.ruff"
+			],
+			"settings": {
+				"python.defaultInterpreterPath": "/opt/venv/bin/python",
+				"python.terminal.activateEnvironment": true,
+				"python.formatting.provider": "black",
+				"python.linting.enabled": true,
+				"python.linting.mypyEnabled": true,
+				"python.testing.pytestEnabled": true,
+				"python.testing.unittestEnabled": false,
+				"[python]": {
+					"editor.defaultFormatter": "ms-python.black-formatter",
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": {
+						"source.organizeImports": "explicit"
+					}
+				}
+			}
+		}
+	},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [8080, 8081],
+	"portsAttributes": {
+		"8080": {
+			"label": "HuggingFace Server HTTP",
+			"onAutoForward": "notify"
+		},
+		"8081": {
+			"label": "HuggingFace Server gRPC",
+			"onAutoForward": "notify"
+		}
+	},
+
+	// Set environment variables
+	"containerEnv": {
+		"PYTHONUNBUFFERED": "1",
+		"HF_HUB_DISABLE_TELEMETRY": "1"
+	},
+
+	// Enable GPU support (comment out if no GPU available)
+	"runArgs": [
+		"--gpus=all"
+	],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "cd /workspace/huggingfaceserver && make dev_install",
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	
+	// Mount the workspace
+	"workspaceFolder": "/workspace/huggingfaceserver",
+	"workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspace,type=bind,consistency=cached",
+
+	"mounts": [
+		// Mount Hugging Face cache to persist downloaded models
+		"source=huggingface-cache,target=/home/vscode/.cache/huggingface,type=volume"
+	],
+
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"installOhMyZsh": true,
+			"username": "vscode",
+			"uid": "1000",
+			"gid": "1000"
+		}
+	}
+}
