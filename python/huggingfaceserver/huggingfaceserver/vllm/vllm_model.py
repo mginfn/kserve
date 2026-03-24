@@ -18,12 +18,12 @@ from http import HTTPStatus
 
 import torch
 from fastapi import Request
-from vllm import AsyncEngineArgs
+from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.entrypoints.logger import RequestLogger
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.openai.completion.serving import OpenAIServingCompletion
 from vllm.entrypoints.openai.chat_completion.serving import OpenAIServingChat
-from vllm.entrypoints.pooling.embed.serving import OpenAIServingEmbedding
+from vllm.entrypoints.pooling.embed.serving import ServingEmbedding
 from vllm.entrypoints.pooling.score.serving import ServingScores
 from vllm.tool_parsers import ToolParserManager
 from vllm.entrypoints.openai.models.protocol import BaseModelPath
@@ -31,6 +31,7 @@ from vllm.entrypoints.openai.models.serving import OpenAIServingModels
 from vllm.entrypoints.openai.cli_args import validate_parsed_serve_args
 from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.openai.engine.protocol import ErrorResponse as engineError
+from vllm.entrypoints.serve.render.serving import OpenAIServingRender
 from vllm.reasoning import ReasoningParserManager
 
 from kserve.protocol.rest.openai.errors import create_error_response
@@ -60,9 +61,10 @@ class VLLMModel(
     args: Namespace = None
     ready: bool = False
     openai_serving_models: Optional[OpenAIServingModels] = None
+    openai_serving_render: Optional[OpenAIServingRender] = None
     openai_serving_completion: Optional[OpenAIServingCompletion] = None
     openai_serving_chat: Optional[OpenAIServingChat] = None
-    openai_serving_embedding: Optional[OpenAIServingEmbedding] = None
+    openai_serving_embedding: Optional[ServingEmbedding] = None
     serving_reranking: Optional[ServingScores] = None
 
     def __init__(
@@ -85,6 +87,13 @@ class VLLMModel(
     async def start_engine(self):
         if self.args.tool_parser_plugin and len(self.args.tool_parser_plugin) > 3:
             ToolParserManager.import_tool_parser(self.args.tool_parser_plugin)
+        if (
+            getattr(self.args, "reasoning_parser_plugin", None)
+            and len(self.args.reasoning_parser_plugin) > 3
+        ):
+            ReasoningParserManager.import_reasoning_parser(
+                self.args.reasoning_parser_plugin
+            )
 
         valid_tool_parsers = ToolParserManager.list_registered()
         if (
@@ -139,14 +148,35 @@ class VLLMModel(
             )
             await self.openai_serving_models.init_static_loras()
 
+            self.openai_serving_render = OpenAIServingRender(
+                model_config=self.engine_client.model_config,
+                renderer=self.engine_client.renderer,
+                io_processor=self.engine_client.io_processor,
+                model_registry=self.openai_serving_models.registry,
+                request_logger=self.request_logger,
+                chat_template=resolved_chat_template,
+                chat_template_content_format=self.args.chat_template_content_format,
+                trust_request_chat_template=self.args.trust_request_chat_template,
+                enable_auto_tools=self.args.enable_auto_tool_choice,
+                exclude_tools_when_tool_choice_none=self.args.exclude_tools_when_tool_choice_none,
+                tool_parser=self.args.tool_call_parser,
+                default_chat_template_kwargs=getattr(
+                    self.args, "default_chat_template_kwargs", None
+                ),
+                log_error_stack=self.args.log_error_stack,
+            )
             self.openai_serving_chat = (
                 OpenAIServingChat(
                     self.engine_client,
                     self.openai_serving_models,
                     self.args.response_role,
+                    openai_serving_render=self.openai_serving_render,
                     request_logger=self.request_logger,
                     chat_template=resolved_chat_template,
                     chat_template_content_format=self.args.chat_template_content_format,
+                    default_chat_template_kwargs=getattr(
+                        self.args, "default_chat_template_kwargs", None
+                    ),
                     trust_request_chat_template=self.args.trust_request_chat_template,
                     return_tokens_as_token_ids=self.args.return_tokens_as_token_ids,
                     enable_auto_tools=self.args.enable_auto_tool_choice,
@@ -156,28 +186,30 @@ class VLLMModel(
                     enable_prompt_tokens_details=self.args.enable_prompt_tokens_details,
                     enable_force_include_usage=self.args.enable_force_include_usage,
                     enable_log_outputs=self.args.enable_log_outputs,
-                    log_error_stack=self.args.log_error_stack,
+                    enable_log_deltas=getattr(self.args, "enable_log_deltas", True),
                 )
                 if "generate" in supported_tasks
                 else None
             )
+            if self.openai_serving_chat is not None:
+                self.openai_serving_chat.warmup()
 
             self.openai_serving_completion = (
                 OpenAIServingCompletion(
                     self.engine_client,
                     self.openai_serving_models,
+                    openai_serving_render=self.openai_serving_render,
                     request_logger=self.request_logger,
                     return_tokens_as_token_ids=self.args.return_tokens_as_token_ids,
                     enable_prompt_tokens_details=self.args.enable_prompt_tokens_details,
                     enable_force_include_usage=self.args.enable_force_include_usage,
-                    log_error_stack=self.args.log_error_stack,
                 )
                 if "generate" in supported_tasks
                 else None
             )
 
             self.openai_serving_embedding = (
-                OpenAIServingEmbedding(
+                ServingEmbedding(
                     self.engine_client,
                     self.openai_serving_models,
                     request_logger=self.request_logger,
@@ -197,7 +229,7 @@ class VLLMModel(
                     request_logger=self.request_logger,
                     log_error_stack=self.args.log_error_stack,
                 )
-                if ("embed" in supported_tasks or "score" in supported_tasks)
+                if any(task in supported_tasks for task in ("embed", "score", "token_embed"))
                 else None
             )
 
@@ -283,9 +315,7 @@ class VLLMModel(
                 message="The model does not support Embeddings API",
                 status_code=HTTPStatus.BAD_REQUEST,
             )
-        response = await self.openai_serving_embedding.create_embedding(
-            request, raw_request
-        )
+        response = await self.openai_serving_embedding(request, raw_request)
 
         if isinstance(response, engineError):
             return create_error_response(
