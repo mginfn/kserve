@@ -52,7 +52,7 @@ WORKDIR ${WORKSPACE_DIR}
 FROM base AS build
 
 ARG WORKSPACE_DIR
-ARG VLLM_VERSION=0.18.0
+# ARG VLLM_VERSION=0.18.0.dev0
 ARG LMCACHE_VERSION=0.3.9
 ARG FLASHINFER_VERSION=0.6.6
 
@@ -87,7 +87,8 @@ RUN --mount=type=cache,target=/root/.cache/uv cd huggingfaceserver && uv sync --
 # Install vllm
 # https://docs.vllm.ai/en/latest/models/extensions/runai_model_streamer.html, https://docs.vllm.ai/en/latest/models/extensions/tensorizer.html
 # https://docs.vllm.ai/en/latest/models/extensions/fastsafetensor.html
-RUN --mount=type=cache,target=/root/.cache/pip pip install vllm[runai,tensorizer,fastsafetensors]==${VLLM_VERSION}
+# RUN --mount=type=cache,target=/root/.cache/pip pip install vllm[runai,tensorizer,fastsafetensors]>=${VLLM_VERSION} \
+#         --extra-index-url https://wheels.vllm.ai/nightly
 
 # Install lmcache
 RUN --mount=type=cache,target=/root/.cache/pip pip install lmcache==${LMCACHE_VERSION}

@@ -118,7 +118,8 @@ class VLLMModel(
             self.vllm_engine_args.tensor_parallel_size = torch.cuda.device_count()
 
         async with build_async_engine_client_from_engine_args(
-            self.vllm_engine_args, self.args.disable_frontend_multiprocessing
+            self.vllm_engine_args,
+            getattr(self.args, "disable_frontend_multiprocessing", False),
         ) as engine_client:
             self.engine_client = engine_client
             vllm_config = self.engine_client.vllm_config
