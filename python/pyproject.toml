@@ -19,6 +19,7 @@ with-urls = true
 output-path = "third_party/library"
 # Requires manual review
 ignore-packages = [
+  # CUDA 12
   "nvidia-cublas-cu12", 
   "nvidia-cuda-cupti-cu12", 
   "nvidia-cuda-nvrtc-cu12", 
@@ -32,11 +33,28 @@ ignore-packages = [
   "nvidia-nccl-cu12", 
   "nvidia-nvjitlink-cu12", 
   "nvidia-nvtx-cu12", 
+  "nvidia-cusparselt-cu12",
+  "nvidia-nvshmem-cu12",
+  # CUDA 13
+  "nvidia-cublas",
+  "nvidia-cuda-cupti",
+  "nvidia-cuda-nvrtc",
+  "nvidia-cuda-runtime",
+  "nvidia-cudnn-cu13",
+  "nvidia-cufft",
+  "nvidia-cufile",
+  "nvidia-curand",
+  "nvidia-cusolver",
+  "nvidia-cusparse",
+  "nvidia-nccl-cu13",
+  "nvidia-nvjitlink",
+  "nvidia-nvtx",
+  "nvidia-cusparselt-cu13",
+  "nvidia-nvshmem-cu13",
+  # Shared
   "nvidia-cutlass-dsl",
   "nvidia-cutlass-dsl-libs-base",
-  "nvidia-cusparselt-cu12",
   "nvidia-cudnn-frontend",
-  "nvidia-nvshmem-cu12",
   # Intel EULA
   "intel-openmp", "intel-cmplr-lib-ur",
   # Intel Simplified Software License
