@@ -69,7 +69,8 @@ ray = [
     "ray[serve]>=2.43.0",
 ]
 llm = [
-    "vllm>=0.18.0.dev0",
+    # "vllm>=0.18.0.dev0",
+    "vllm>=0.19.0",
 ]
 
 [dependency-groups]
@@ -110,4 +111,4 @@ build-backend = "setuptools.build_meta"
 # UV workspace source for local dependency resolution
 [tool.uv.sources]
 kserve-storage = { path = "../storage", editable = true }
-vllm = { index = "vllm-nightly" }
+# vllm = { index = "vllm-nightly" }

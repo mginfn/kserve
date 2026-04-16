@@ -12,6 +12,15 @@ ARG CUDA_VERSION=12.9.1
 ARG PYTHON_VERSION=3.12
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do \
+        [ -f "$f" ] || continue; \
+        sed -i \
+            -e 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+            -e 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' \
+            -e 's|http://ports.ubuntu.com/ubuntu-ports|https://ports.ubuntu.com/ubuntu-ports|g' \
+            "$f"; \
+    done
+
 RUN apt-get update -y \
     && apt-get install -y ccache software-properties-common git curl sudo gcc python-is-python3 \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -121,6 +130,15 @@ ARG PYTHON_VERSION=3.12
 ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR ${WORKSPACE_DIR}
+
+RUN for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do \
+        [ -f "$f" ] || continue; \
+        sed -i \
+            -e 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+            -e 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' \
+            -e 's|http://ports.ubuntu.com/ubuntu-ports|https://ports.ubuntu.com/ubuntu-ports|g' \
+            "$f"; \
+    done
 
 # Install Python and other dependencies
 RUN apt-get update -y \
